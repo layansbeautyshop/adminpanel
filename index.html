@@ -1,87 +1,71 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>لوحة التحكم - متجر ليان</title>
     <script src="https://cdn.tailwindcss.com/3.4.17"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700&family=Cormorant+Garamond:ital,wght@1,400;1,600&display=swap" rel="stylesheet">
 </head>
 <style>
-    body {
-        font-family: 'Tajawal', sans-serif;
-        background: #FFFBF9;
-    }
-
-    .cursive {
-        font-family: 'Cormorant Garamond', serif;
-        font-style: italic;
-    }
-
+    body { font-family: 'Tajawal', sans-serif; background: #FFFBF9; }
+    .cursive { font-family: 'Cormorant Garamond', serif; font-style: italic; }
     .glass-card {
-        background: rgba(255, 255, 255, 0.9);
+        background: rgba(255,255,255,0.9);
         backdrop-filter: blur(20px);
         border: 1px solid #E8A5A5;
-        box-shadow: 0 8px 32px rgba(232, 165, 165, 0.1);
+        box-shadow: 0 8px 32px rgba(232,165,165,0.1);
     }
-
-    .btn-primary {
-        background: #E8A5A5;
-        color: white;
-        transition: all 0.3s ease;
-    }
-
-    .btn-primary:hover {
-        background: #D48989;
-        transform: translateY(-2px);
-        box-shadow: 0 5px 15px rgba(232, 165, 165, 0.3);
-    }
-
-    .drag-zone {
-        border: 2px dashed #E8A5A5;
-        transition: all 0.3s ease;
-    }
-
-    .drag-zone.active {
-        background: #FFF5F5;
-        border-color: #D48989;
-        transform: scale(1.02);
-    }
-
-    .shade-preview {
-        width: 40px;
-        height: 40px;
-        border-radius: 50%;
-        border: 2px solid white;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-    }
+    .btn-primary { background: #E8A5A5; color: white; transition: all 0.3s ease; }
+    .btn-primary:hover:not(:disabled) { background: #D48989; transform: translateY(-2px); box-shadow: 0 5px 15px rgba(232,165,165,0.3); }
+    .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+    .btn-danger { background: #fca5a5; color: white; transition: all 0.3s ease; }
+    .btn-danger:hover { background: #f87171; }
+    .drag-zone { border: 2px dashed #E8A5A5; transition: all 0.3s ease; }
+    .drag-zone.active { background: #FFF5F5; border-color: #D48989; transform: scale(1.02); }
+    .sale-badge { background: linear-gradient(135deg, #ff6b6b, #ee5a24); color: white; font-size: 0.65rem; padding: 2px 8px; border-radius: 20px; font-weight: 700; }
+    .product-row { transition: background 0.2s ease; }
+    .product-row:hover { background: #FFF9F9; }
+    .edit-panel { border-top: 2px solid #F5E6E6; }
+    .tab-btn { transition: all 0.3s ease; border-bottom: 3px solid transparent; }
+    .tab-btn.active { border-bottom-color: #E8A5A5; color: #E8A5A5; font-weight: 700; }
+    .fade-in { animation: fadeIn 0.4s ease; }
+    @keyframes fadeIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
+    .category-badge { display:inline-block; padding:2px 10px; border-radius:20px; font-size:0.75rem; font-weight:600; background:#FFF0F0; color:#E8A5A5; border:1px solid #F5E6E6; }
 </style>
-</head>
 
-<body class="p-4 md:p-8">
-    <div class="max-w-5xl mx-auto">
-        <header class="flex justify-between items-center mb-12">
-            <div>
-                <h1 class="text-3xl font-bold text-stone-700">لوحة تحكم المنتجات</h1>
-                <p class="cursive text-[#E8A5A5] text-xl">Admin Dashboard</p>
-            </div>
-            <a href="index.html" class="text-stone-400 hover:text-[#E8A5A5] transition-colors flex items-center gap-2">
-                <span>العودة للمتجر</span>
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-                </svg>
-            </a>
-        </header>
+<body class="p-4 md:p-8 min-h-screen">
+<div class="max-w-6xl mx-auto">
 
+    <!-- Header -->
+    <header class="flex justify-between items-center mb-10">
+        <div>
+            <h1 class="text-3xl font-bold text-stone-700">لوحة تحكم المنتجات</h1>
+            <p class="cursive text-[#E8A5A5] text-xl">Admin Dashboard</p>
+        </div>
+        <a href="index.html" class="text-stone-400 hover:text-[#E8A5A5] transition-colors flex items-center gap-2">
+            <span>العودة للمتجر</span>
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+            </svg>
+        </a>
+    </header>
+
+    <!-- Tabs -->
+    <div class="flex gap-6 border-b border-[#F5E6E6] mb-8">
+        <button class="tab-btn active pb-3 text-stone-700 text-sm font-medium" onclick="switchTab('add', this)">➕ إضافة منتج جديد</button>
+        <button class="tab-btn pb-3 text-stone-500 text-sm font-medium" onclick="switchTab('list', this); loadProducts();">📦 المنتجات المحفوظة</button>
+    </div>
+
+    <!-- ======================== ADD TAB ======================== -->
+    <div id="tab-add" class="fade-in">
         <div class="grid lg:grid-cols-3 gap-8">
-            <!-- Product Form -->
             <div class="lg:col-span-2">
                 <div class="glass-card rounded-3xl p-8">
                     <h2 class="text-xl font-bold text-stone-700 mb-6 flex items-center gap-2">
                         <svg class="w-6 h-6 text-[#E8A5A5]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
                         </svg>
                         إضافة منتج جديد
                     </h2>
@@ -90,23 +74,18 @@
                         <div class="grid md:grid-cols-2 gap-6">
                             <div>
                                 <label class="block text-stone-600 mb-2 font-medium">اسم المنتج (عربي)</label>
-                                <input type="text" id="p-name" required
-                                    class="w-full px-4 py-3 rounded-xl border border-rose-100 outline-none focus:border-[#E8A5A5] transition-all"
-                                    placeholder="مثلاً: أحمر شفاه مخملي">
+                                <input type="text" id="p-name" required class="w-full px-4 py-3 rounded-xl border border-rose-100 outline-none focus:border-[#E8A5A5] transition-all" placeholder="مثلاً: أحمر شفاه مخملي">
                             </div>
                             <div>
                                 <label class="block text-stone-600 mb-2 font-medium">اسم المنتج (English)</label>
-                                <input type="text" id="p-name-en" required
-                                    class="w-full px-4 py-3 rounded-xl border border-rose-100 outline-none focus:border-[#E8A5A5] transition-all"
-                                    placeholder="e.g. Velvet Lipstick">
+                                <input type="text" id="p-name-en" required class="w-full px-4 py-3 rounded-xl border border-rose-100 outline-none focus:border-[#E8A5A5] transition-all" placeholder="e.g. Velvet Lipstick">
                             </div>
                         </div>
 
                         <div class="grid md:grid-cols-2 gap-6">
                             <div>
                                 <label class="block text-stone-600 mb-2 font-medium">التصنيف</label>
-                                <select id="p-category" required
-                                    class="w-full px-4 py-3 rounded-xl border border-rose-100 outline-none focus:border-[#E8A5A5] transition-all bg-white">
+                                <select id="p-category" required class="w-full px-4 py-3 rounded-xl border border-rose-100 outline-none focus:border-[#E8A5A5] transition-all bg-white">
                                     <option value="face">الوجه • Face</option>
                                     <option value="lips">الشفاه • Lips</option>
                                     <option value="eyes">العيون • Eyes</option>
@@ -119,44 +98,52 @@
                             </div>
                             <div>
                                 <label class="block text-stone-600 mb-2 font-medium">السعر (₪)</label>
-                                <input type="number" id="p-price" required
-                                    class="w-full px-4 py-3 rounded-xl border border-rose-100 outline-none focus:border-[#E8A5A5] transition-all"
-                                    placeholder="85">
+                                <input type="number" id="p-price" required class="w-full px-4 py-3 rounded-xl border border-rose-100 outline-none focus:border-[#E8A5A5] transition-all" placeholder="85" min="0" step="0.01">
+                            </div>
+                        </div>
+
+                        <!-- Sale -->
+                        <div class="p-4 bg-orange-50 rounded-2xl border border-orange-100">
+                            <div class="flex items-center justify-between mb-3">
+                                <div>
+                                    <p class="font-medium text-stone-700">🏷️ تخفيض / Sale</p>
+                                    <p class="text-xs text-stone-400 mt-1">فعّلي هذا الخيار إذا كان المنتج في تخفيض</p>
+                                </div>
+                                <label class="relative inline-flex items-center cursor-pointer">
+                                    <input type="checkbox" id="p-on-sale" class="sr-only peer" onchange="toggleSaleBox('sale-fields-add', this)">
+                                    <div class="w-11 h-6 bg-gray-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-orange-400"></div>
+                                </label>
+                            </div>
+                            <div id="sale-fields-add" class="hidden">
+                                <label class="block text-stone-500 mb-1 text-sm">السعر الأصلي قبل التخفيض (₪)</label>
+                                <input type="number" id="p-original-price" class="w-full md:w-56 px-4 py-2 rounded-xl border border-orange-200 outline-none focus:border-orange-400 text-sm bg-white" placeholder="مثلاً: 100" min="0" step="0.01">
+                                <p class="text-xs text-stone-400 mt-1">السعر الحالي (بعد التخفيض) يُؤخذ من حقل "السعر" بالأعلى</p>
                             </div>
                         </div>
 
                         <div>
                             <label class="block text-stone-600 mb-2 font-medium">وصف المنتج</label>
-                            <textarea id="p-desc" rows="3" required
-                                class="w-full px-4 py-3 rounded-xl border border-rose-100 outline-none focus:border-[#E8A5A5] transition-all resize-none"
-                                placeholder="اكتبي تفاصيل المنتج هنا..."></textarea>
+                            <textarea id="p-desc" rows="3" required class="w-full px-4 py-3 rounded-xl border border-rose-100 outline-none focus:border-[#E8A5A5] transition-all resize-none" placeholder="اكتبي تفاصيل المنتج هنا..."></textarea>
                         </div>
 
-                        <!-- Featured Toggle -->
-                        <div
-                            class="flex items-center justify-between p-4 bg-[#FFF9F9] rounded-2xl border border-[#F5E6E6]">
+                        <!-- Featured -->
+                        <div class="flex items-center justify-between p-4 bg-[#FFF9F9] rounded-2xl border border-[#F5E6E6]">
                             <div>
                                 <p class="font-medium text-stone-700">منتج مميز ⭐</p>
-                                <p class="text-xs text-stone-400 mt-1">سيظهر في قسم "منتجات مميزة" في الصفحة الرئيسية
-                                </p>
+                                <p class="text-xs text-stone-400 mt-1">سيظهر في قسم "منتجات مميزة" في الصفحة الرئيسية</p>
                             </div>
                             <label class="relative inline-flex items-center cursor-pointer">
                                 <input type="checkbox" id="p-featured" class="sr-only peer">
-                                <div
-                                    class="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#E8A5A5]">
-                                </div>
+                                <div class="w-11 h-6 bg-gray-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#E8A5A5]"></div>
                             </label>
                         </div>
 
-                        <!-- Drag & Drop Photos -->
+                        <!-- Photos -->
                         <div>
                             <label class="block text-stone-600 mb-2 font-medium">صور المنتج (Drag & Drop)</label>
-                            <div id="drag-zone"
-                                class="drag-zone rounded-2xl py-10 flex flex-col items-center justify-center cursor-pointer">
-                                <svg class="w-12 h-12 text-[#E8A5A5] mb-3" fill="none" stroke="currentColor"
-                                    viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                        d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                            <div id="drag-zone" class="drag-zone rounded-2xl py-10 flex flex-col items-center justify-center cursor-pointer">
+                                <svg class="w-12 h-12 text-[#E8A5A5] mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
                                 </svg>
                                 <p class="text-stone-500 text-sm">اسحبي الصور هنا أو انقري للاختيار</p>
                                 <input type="file" id="p-images" multiple class="hidden" accept="image/*">
@@ -164,204 +151,464 @@
                             <div id="image-preview" class="flex flex-wrap gap-4 mt-4"></div>
                         </div>
 
-                        <!-- Shades Builder -->
+                        <!-- Shades -->
                         <div>
                             <div class="flex justify-between items-center mb-4">
                                 <label class="block text-stone-600 font-medium">تخصيص الألوان (Shades)</label>
-                                <button type="button" onclick="addShadeRow()"
-                                    class="text-[#E8A5A5] hover:text-[#D48989] text-sm font-bold flex items-center gap-1">
-                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                            d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                                    </svg>
+                                <button type="button" onclick="addShadeRow('shades-container')" class="text-[#E8A5A5] hover:text-[#D48989] text-sm font-bold flex items-center gap-1">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
                                     إضافة لون
                                 </button>
                             </div>
-                            <div id="shades-container" class="space-y-3">
-                                <!-- Shade rows will be added here -->
-                            </div>
+                            <div id="shades-container" class="space-y-3"></div>
                         </div>
 
-                        <button type="submit"
-                            class="btn-primary w-full py-4 rounded-xl text-lg font-bold mt-8 shadow-lg">
+                        <button type="submit" class="btn-primary w-full py-4 rounded-xl text-lg font-bold mt-8 shadow-lg">
                             حفظ المنتج ونشره
                         </button>
                     </form>
                 </div>
             </div>
 
-            <!-- Stats/Info -->
+            <!-- Tips -->
             <div class="space-y-6">
                 <div class="glass-card rounded-3xl p-8">
                     <h3 class="font-bold text-stone-700 mb-4">تعليمات سريعة</h3>
                     <ul class="text-stone-500 text-sm space-y-3">
-                        <li class="flex items-start gap-2">
-                            <span class="text-[#E8A5A5]">•</span>
-                            <span>استخدمي صوراً مربعة للحصول على أفضل مظهر.</span>
-                        </li>
-                        <li class="flex items-start gap-2">
-                            <span class="text-[#E8A5A5]">•</span>
-                            <span>يمكنك إضافة أكثر من لون للمنتج الواحد.</span>
-                        </li>
-                        <li class="flex items-start gap-2">
-                            <span class="text-[#E8A5A5]">•</span>
-                            <span>المنتجات ستظهر فوراً في الموقع بعد الحفظ.</span>
-                        </li>
+                        <li class="flex items-start gap-2"><span class="text-[#E8A5A5]">•</span><span>استخدمي صوراً مربعة للحصول على أفضل مظهر.</span></li>
+                        <li class="flex items-start gap-2"><span class="text-[#E8A5A5]">•</span><span>يمكنك إضافة أكثر من لون للمنتج الواحد.</span></li>
+                        <li class="flex items-start gap-2"><span class="text-[#E8A5A5]">•</span><span>المنتجات ستظهر فوراً في الموقع بعد الحفظ.</span></li>
+                        <li class="flex items-start gap-2"><span class="text-[#E8A5A5]">•</span><span>فعّلي خيار التخفيض لعرض السعر الأصلي مشطوباً.</span></li>
+                        <li class="flex items-start gap-2"><span class="text-[#E8A5A5]">•</span><span>يمكنك تعديل أي منتج من تبويب "المنتجات المحفوظة".</span></li>
                     </ul>
                 </div>
             </div>
         </div>
     </div>
 
-    <script>
-        // Drag and Drop Logic
-        const dragZone = document.getElementById('drag-zone');
-        const fileInput = document.getElementById('p-images');
-        const previewZone = document.getElementById('image-preview');
+    <!-- ======================== LIST TAB ======================== -->
+    <div id="tab-list" class="hidden fade-in">
+        <div class="flex flex-wrap gap-3 mb-6 items-center">
+            <input type="text" id="search-products" oninput="filterProductList()" placeholder="ابحثي عن منتج..." class="px-4 py-2 rounded-xl border border-rose-100 outline-none focus:border-[#E8A5A5] text-sm w-56">
+            <select id="filter-category" onchange="filterProductList()" class="px-4 py-2 rounded-xl border border-rose-100 outline-none focus:border-[#E8A5A5] text-sm bg-white">
+                <option value="">كل التصنيفات</option>
+                <option value="face">الوجه</option>
+                <option value="lips">الشفاه</option>
+                <option value="eyes">العيون</option>
+                <option value="foundation">الأساس</option>
+                <option value="setting">مثبتات</option>
+                <option value="gifts">هدايا</option>
+                <option value="packages">باكدجات</option>
+                <option value="nails">أظافر</option>
+            </select>
+            <button onclick="loadProducts()" class="btn-primary px-5 py-2 rounded-xl text-sm font-semibold flex items-center gap-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                تحديث
+            </button>
+            <span id="product-count" class="text-stone-400 text-sm mr-auto"></span>
+        </div>
 
-        dragZone.onclick = () => fileInput.click();
+        <div id="list-loading" class="text-center py-16 hidden">
+            <div class="w-10 h-10 rounded-full border-4 border-[#F5E6E6] border-t-[#E8A5A5] animate-spin mx-auto mb-4"></div>
+            <p class="text-stone-400 text-sm">جاري التحميل...</p>
+        </div>
 
-        dragZone.ondragover = (e) => { e.preventDefault(); dragZone.classList.add('active'); };
-        dragZone.ondragleave = () => dragZone.classList.remove('active');
-        dragZone.ondrop = (e) => {
-            e.preventDefault();
-            dragZone.classList.remove('active');
-            handleFiles(e.dataTransfer.files);
-        };
+        <div id="list-empty" class="hidden text-center py-16">
+            <p class="text-stone-400 text-lg">لا توجد منتجات</p>
+            <p class="text-stone-300 text-sm mt-1">أضيفي منتجاً جديداً من التبويب الأول</p>
+        </div>
 
-        fileInput.onchange = (e) => handleFiles(e.target.files);
+        <div id="product-list" class="space-y-4"></div>
+    </div>
 
-        function handleFiles(files) {
-            Array.from(files).forEach(file => {
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                    const div = document.createElement('div');
-                    div.className = 'relative w-24 h-24 rounded-xl overflow-hidden shadow-md';
-                    div.innerHTML = `
-                        <img src="${e.target.result}" class="w-full h-full object-cover">
-                        <button onclick="this.parentElement.remove()" class="absolute top-1 left-1 bg-white/80 rounded-full p-1 shadow-sm">
-                            <svg class="w-3 h-3 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
-                        </button>
-                    `;
-                    previewZone.appendChild(div);
-                };
-                reader.readAsDataURL(file);
-            });
-        }
+</div>
 
-        // Shades Builder Logic
-        function addShadeRow() {
-            const container = document.getElementById('shades-container');
-            const uid = 'shade-' + Date.now() + '-' + Math.random().toString(36).substr(2, 4);
+<script>
+// ─── Supabase ─────────────────────────────────────────────────────────────────
+const supabaseUrl = 'https://mdfrvmsruwzhhszoqumn.supabase.co';
+const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kZnJ2bXNydXd6aGhzem9xdW1uIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI2NTMyOTksImV4cCI6MjA4ODIyOTI5OX0.rwIAoCZSVecvyvZA6Vhm1tPbzSBhgggpdy_xJ6aKjbM';
+const supabaseClient = (window.supabase && typeof window.supabase.createClient === 'function')
+    ? window.supabase.createClient(supabaseUrl, supabaseKey) : null;
+
+// ─── Tabs ─────────────────────────────────────────────────────────────────────
+function switchTab(tab, btn) {
+    document.getElementById('tab-add').classList.toggle('hidden', tab !== 'add');
+    document.getElementById('tab-list').classList.toggle('hidden', tab !== 'list');
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+}
+
+// ─── Sale toggle ──────────────────────────────────────────────────────────────
+function toggleSaleBox(fieldId, checkbox) {
+    const el = document.getElementById(fieldId);
+    if (el) el.classList.toggle('hidden', !checkbox.checked);
+}
+
+// ─── Drag & Drop ──────────────────────────────────────────────────────────────
+const dragZone = document.getElementById('drag-zone');
+const fileInput = document.getElementById('p-images');
+const previewZone = document.getElementById('image-preview');
+
+dragZone.onclick = () => fileInput.click();
+dragZone.ondragover = (e) => { e.preventDefault(); dragZone.classList.add('active'); };
+dragZone.ondragleave = () => dragZone.classList.remove('active');
+dragZone.ondrop = (e) => { e.preventDefault(); dragZone.classList.remove('active'); handleFiles(e.dataTransfer.files, previewZone); };
+fileInput.onchange = (e) => handleFiles(e.target.files, previewZone);
+
+function handleFiles(files, container) {
+    Array.from(files).forEach(file => {
+        const reader = new FileReader();
+        reader.onload = (ev) => {
             const div = document.createElement('div');
-            div.className = 'flex gap-3 items-center animate-slide-in py-2 border-b border-rose-50';
+            div.className = 'relative w-24 h-24 rounded-xl overflow-hidden shadow-md';
             div.innerHTML = `
-                <input type="text" class="flex-1 px-4 py-2 rounded-xl border border-rose-100 outline-none text-sm" placeholder="اسم اللون (مثلاً: خوخي)">
-                <input type="color" class="w-10 h-10 p-0 border-0 rounded-lg cursor-pointer bg-transparent flex-shrink-0" value="#E8A5A5">
-                <div class="flex flex-col items-center flex-shrink-0">
-                  <span class="text-[10px] text-stone-400 mb-1">مخزون</span>
-                  <input type="number" class="w-16 px-2 py-2 rounded-xl border border-rose-100 outline-none text-center text-sm" placeholder="10" min="0" value="10">
-                </div>
-                <div class="flex flex-col items-center flex-shrink-0">
-                  <span class="text-[10px] text-stone-400 mb-1">صورة اللون</span>
-                  <div class="relative w-10 h-10 cursor-pointer" onclick="document.getElementById('${uid}').click()">
-                    <div class="shade-img-preview w-10 h-10 rounded-lg border-2 border-dashed border-rose-200 flex items-center justify-center overflow-hidden bg-rose-50 hover:border-[#E8A5A5] transition-colors">
-                      <svg class="shade-img-placeholder w-5 h-5 text-rose-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
-                    </div>
-                    <input type="file" id="${uid}" accept="image/*" class="hidden" onchange="previewShadeImage(this)">
-                  </div>
-                </div>
-                <button type="button" onclick="this.parentElement.remove()" class="p-2 text-stone-300 hover:text-red-400 flex-shrink-0">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
-                </button>
-            `;
+                <img src="${ev.target.result}" class="w-full h-full object-cover">
+                <button type="button" onclick="this.parentElement.remove()" class="absolute top-1 left-1 bg-white/80 rounded-full p-1 shadow-sm">
+                    <svg class="w-3 h-3 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>`;
             container.appendChild(div);
-        }
-
-        function previewShadeImage(input) {
-            if (!input.files || !input.files[0]) return;
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                const preview = input.closest('div[class*="relative"]').querySelector('.shade-img-preview');
-                preview.innerHTML = `<img src="${e.target.result}" class="w-full h-full object-cover">`;
-                // Store base64 on the row element for later collection
-                input.closest('.flex.gap-3').dataset.shadeImage = e.target.result;
-            };
-            reader.readAsDataURL(input.files[0]);
-        }
-
-        // Initial Row
-        addShadeRow();
-
-        // Supabase Initialization — window.supabase is what the CDN exposes
-        const supabaseUrl = 'https://mdfrvmsruwzhhszoqumn.supabase.co';
-        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kZnJ2bXNydXd6aGhzem9xdW1uIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI2NTMyOTksImV4cCI6MjA4ODIyOTI5OX0.rwIAoCZSVecvyvZA6Vhm1tPbzSBhgggpdy_xJ6aKjbM';
-        const supabaseClient = (window.supabase && typeof window.supabase.createClient === 'function')
-            ? window.supabase.createClient(supabaseUrl, supabaseKey)
-            : null;
-
-        // Form Submission
-        document.getElementById('product-form').onsubmit = async (e) => {
-            e.preventDefault();
-
-            const btn = e.target.querySelector('button[type="submit"]');
-
-            if (!supabaseClient) {
-                alert('تعذّر الاتصال بقاعدة البيانات. تحققي من اتصال الإنترنت وأعيدي تحميل الصفحة.');
-                return;
-            }
-
-            btn.disabled = true;
-            btn.textContent = 'جاري الحفظ...';
-
-            try {
-                const shades = Array.from(document.querySelectorAll('#shades-container > div')).map(div => ({
-                    id: 's' + Math.random().toString(36).substr(2, 4),
-                    name: div.querySelector('input[type="text"]').value,
-                    color: div.querySelector('input[type="color"]').value,
-                    stock: parseInt(div.querySelector('input[type="number"]').value) || 0,
-                    image: div.dataset.shadeImage || ''
-                })).filter(s => s.name.trim() !== '');
-
-                // Total stock = sum of all shade stocks
-                const totalStock = shades.reduce((sum, s) => sum + s.stock, 0);
-
-                const images = Array.from(document.querySelectorAll('#image-preview img')).map(img => img.src);
-
-                const productData = {
-                    name: document.getElementById('p-name').value,
-                    nameEn: document.getElementById('p-name-en').value,
-                    category: document.getElementById('p-category').value,
-                    price: parseFloat(document.getElementById('p-price').value),
-                    description: document.getElementById('p-desc').value,
-                    shades: shades,
-                    images: images,
-                    stock: totalStock,
-                    is_featured: document.getElementById('p-featured').checked,
-                    created_at: new Date().toISOString()
-                };
-
-                const { error } = await supabaseClient
-                    .from('products')
-                    .insert([productData]);
-
-                if (error) throw error;
-
-                alert('تم حفظ المنتج ونشره بنجاح! 🎉');
-                e.target.reset();
-                document.getElementById('image-preview').innerHTML = '';
-                document.getElementById('shades-container').innerHTML = '';
-                addShadeRow();
-
-            } catch (err) {
-                console.error('Error saving product:', err);
-                alert('حدث خطأ أثناء الحفظ: ' + err.message);
-            } finally {
-                btn.disabled = false;
-                btn.textContent = 'حفظ المنتج ونشره';
-            }
         };
-    </script>
-</body>
+        reader.readAsDataURL(file);
+    });
+}
 
+// ─── Shades ───────────────────────────────────────────────────────────────────
+function addShadeRow(containerId, shade) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+    const uid = 'shade-' + Date.now() + '-' + Math.random().toString(36).substr(2, 4);
+    const div = document.createElement('div');
+    div.className = 'flex gap-3 items-center py-2 border-b border-rose-50';
+    if (shade && shade.id) div.dataset.shadeId = shade.id;
+    if (shade && shade.image) div.dataset.shadeImage = shade.image;
+    div.innerHTML = `
+        <input type="text" class="flex-1 px-4 py-2 rounded-xl border border-rose-100 outline-none text-sm" placeholder="اسم اللون (مثلاً: خوخي)" value="${shade ? escHtml(shade.name||'') : ''}">
+        <input type="color" class="w-10 h-10 p-0 border-0 rounded-lg cursor-pointer flex-shrink-0" value="${shade ? (shade.color||'#E8A5A5') : '#E8A5A5'}">
+        <div class="flex flex-col items-center flex-shrink-0">
+            <span class="text-[10px] text-stone-400 mb-1">مخزون</span>
+            <input type="number" class="w-16 px-2 py-2 rounded-xl border border-rose-100 outline-none text-center text-sm" min="0" value="${shade ? (shade.stock||0) : 10}">
+        </div>
+        <div class="flex flex-col items-center flex-shrink-0">
+            <span class="text-[10px] text-stone-400 mb-1">صورة اللون</span>
+            <div class="relative w-10 h-10 cursor-pointer" onclick="document.getElementById('${uid}').click()">
+                <div class="shade-img-preview w-10 h-10 rounded-lg border-2 border-dashed border-rose-200 flex items-center justify-center overflow-hidden bg-rose-50 hover:border-[#E8A5A5] transition-colors">
+                    ${shade && shade.image ? `<img src="${shade.image}" class="w-full h-full object-cover">` : `<svg class="w-5 h-5 text-rose-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>`}
+                </div>
+                <input type="file" id="${uid}" accept="image/*" class="hidden" onchange="previewShadeImage(this)">
+            </div>
+        </div>
+        <button type="button" onclick="this.parentElement.remove()" class="p-2 text-stone-300 hover:text-red-400 flex-shrink-0">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+        </button>`;
+    container.appendChild(div);
+}
+
+function previewShadeImage(input) {
+    if (!input.files || !input.files[0]) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        const preview = input.closest('div[class*="relative"]').querySelector('.shade-img-preview');
+        preview.innerHTML = `<img src="${e.target.result}" class="w-full h-full object-cover">`;
+        input.closest('.flex.gap-3').dataset.shadeImage = e.target.result;
+    };
+    reader.readAsDataURL(input.files[0]);
+}
+
+function collectShades(containerId) {
+    return Array.from(document.querySelectorAll(`#${containerId} > div`)).map(div => ({
+        id: div.dataset.shadeId || ('s' + Math.random().toString(36).substr(2, 4)),
+        name: div.querySelector('input[type="text"]').value,
+        color: div.querySelector('input[type="color"]').value,
+        stock: parseInt(div.querySelector('input[type="number"]').value) || 0,
+        image: div.dataset.shadeImage || ''
+    })).filter(s => s.name.trim() !== '');
+}
+
+// Initial shade row
+addShadeRow('shades-container');
+
+// ─── ADD product ──────────────────────────────────────────────────────────────
+document.getElementById('product-form').onsubmit = async (e) => {
+    e.preventDefault();
+    const btn = e.target.querySelector('button[type="submit"]');
+    if (!supabaseClient) { alert('تعذّر الاتصال بقاعدة البيانات.'); return; }
+    btn.disabled = true;
+    btn.textContent = 'جاري الحفظ...';
+    try {
+        const shades = collectShades('shades-container');
+        const totalStock = shades.reduce((s, sh) => s + sh.stock, 0);
+        const images = Array.from(document.querySelectorAll('#image-preview img')).map(i => i.src);
+        const onSale = document.getElementById('p-on-sale').checked;
+        const origVal = document.getElementById('p-original-price').value;
+
+        const productData = {
+            name: document.getElementById('p-name').value,
+            nameEn: document.getElementById('p-name-en').value,
+            category: document.getElementById('p-category').value,
+            price: parseFloat(document.getElementById('p-price').value),
+            on_sale: onSale,
+            original_price: onSale && origVal ? parseFloat(origVal) : null,
+            description: document.getElementById('p-desc').value,
+            shades, images, stock: totalStock,
+            is_featured: document.getElementById('p-featured').checked,
+            created_at: new Date().toISOString()
+        };
+
+        const { error } = await supabaseClient.from('products').insert([productData]);
+        if (error) throw error;
+
+        alert('تم حفظ المنتج ونشره بنجاح! 🎉');
+        e.target.reset();
+        document.getElementById('image-preview').innerHTML = '';
+        document.getElementById('shades-container').innerHTML = '';
+        document.getElementById('sale-fields-add').classList.add('hidden');
+        addShadeRow('shades-container');
+    } catch (err) {
+        alert('حدث خطأ: ' + err.message);
+    } finally {
+        btn.disabled = false;
+        btn.textContent = 'حفظ المنتج ونشره';
+    }
+};
+
+// ─── LOAD products ────────────────────────────────────────────────────────────
+let allProducts = [];
+
+async function loadProducts() {
+    if (!supabaseClient) { alert('تعذّر الاتصال بقاعدة البيانات.'); return; }
+    document.getElementById('list-loading').classList.remove('hidden');
+    document.getElementById('product-list').innerHTML = '';
+    document.getElementById('list-empty').classList.add('hidden');
+    try {
+        const { data, error } = await supabaseClient.from('products').select('*').order('created_at', { ascending: false });
+        if (error) throw error;
+        allProducts = data || [];
+        renderProductList(allProducts);
+    } catch (err) {
+        alert('خطأ في التحميل: ' + err.message);
+    } finally {
+        document.getElementById('list-loading').classList.add('hidden');
+    }
+}
+
+function filterProductList() {
+    const q = (document.getElementById('search-products').value || '').toLowerCase();
+    const cat = document.getElementById('filter-category').value;
+    renderProductList(allProducts.filter(p =>
+        (!cat || p.category === cat) &&
+        (!q || (p.name||'').toLowerCase().includes(q) || (p.nameEn||'').toLowerCase().includes(q))
+    ));
+}
+
+function categoryLabel(cat) {
+    return { face:'الوجه', lips:'الشفاه', eyes:'العيون', foundation:'الأساس', setting:'مثبتات', gifts:'هدايا', packages:'باكدجات', nails:'أظافر' }[cat] || cat;
+}
+
+function renderProductList(products) {
+    const container = document.getElementById('product-list');
+    const empty = document.getElementById('list-empty');
+    document.getElementById('product-count').textContent = `${products.length} منتج`;
+
+    if (!products.length) {
+        container.innerHTML = '';
+        empty.classList.remove('hidden');
+        return;
+    }
+    empty.classList.add('hidden');
+
+    container.innerHTML = products.map(p => `
+        <div class="glass-card rounded-2xl overflow-hidden product-row" id="row-${p.id}">
+            <!-- Summary row -->
+            <div class="flex items-center gap-4 p-4 cursor-pointer select-none" onclick="toggleEditPanel('${p.id}')">
+                ${p.images && p.images[0]
+                    ? `<img src="${p.images[0]}" class="w-14 h-14 rounded-xl object-cover flex-shrink-0 border border-rose-100">`
+                    : `<div class="w-14 h-14 rounded-xl bg-rose-50 flex items-center justify-center flex-shrink-0 border border-rose-100 text-2xl">💄</div>`
+                }
+                <div class="flex-1 min-w-0">
+                    <div class="flex items-center gap-2 flex-wrap">
+                        <span class="font-semibold text-stone-700">${escHtml(p.name)}</span>
+                        ${p.on_sale ? '<span class="sale-badge">SALE</span>' : ''}
+                        ${p.is_featured ? '<span class="text-yellow-500">⭐</span>' : ''}
+                    </div>
+                    <div class="flex items-center gap-2 mt-1 flex-wrap">
+                        <span class="category-badge">${categoryLabel(p.category)}</span>
+                        <span class="text-sm font-bold text-[#E8A5A5]">₪${p.price}</span>
+                        ${p.on_sale && p.original_price ? `<span class="text-xs text-stone-400 line-through">₪${p.original_price}</span>` : ''}
+                        <span class="text-xs text-stone-400">مخزون: ${p.stock || 0}</span>
+                    </div>
+                </div>
+                <div class="flex items-center gap-2 flex-shrink-0">
+                    <span class="text-stone-300 text-xs hidden md:block">تعديل ▼</span>
+                    <button onclick="event.stopPropagation(); deleteProduct('${p.id}')" class="btn-danger px-3 py-1.5 rounded-lg text-xs font-medium">حذف</button>
+                </div>
+            </div>
+
+            <!-- Edit panel -->
+            <div id="edit-panel-${p.id}" class="edit-panel hidden p-6 bg-white">
+                <h3 class="font-bold text-stone-600 mb-5 text-sm flex items-center gap-2">
+                    <svg class="w-4 h-4 text-[#E8A5A5]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                    تعديل المنتج
+                </h3>
+
+                <div class="grid md:grid-cols-2 gap-4 mb-4">
+                    <div>
+                        <label class="block text-stone-500 mb-1 text-xs">اسم المنتج (عربي)</label>
+                        <input type="text" id="e-name-${p.id}" value="${escHtml(p.name)}" class="w-full px-3 py-2 rounded-xl border border-rose-100 outline-none focus:border-[#E8A5A5] text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-stone-500 mb-1 text-xs">اسم المنتج (English)</label>
+                        <input type="text" id="e-nameen-${p.id}" value="${escHtml(p.nameEn||'')}" class="w-full px-3 py-2 rounded-xl border border-rose-100 outline-none focus:border-[#E8A5A5] text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-stone-500 mb-1 text-xs">التصنيف</label>
+                        <select id="e-cat-${p.id}" class="w-full px-3 py-2 rounded-xl border border-rose-100 outline-none focus:border-[#E8A5A5] text-sm bg-white">
+                            ${['face','lips','eyes','foundation','setting','gifts','packages','nails'].map(c =>
+                                `<option value="${c}" ${p.category===c?'selected':''}>${categoryLabel(c)}</option>`
+                            ).join('')}
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-stone-500 mb-1 text-xs">السعر الحالي (₪)</label>
+                        <input type="number" id="e-price-${p.id}" value="${p.price}" min="0" step="0.01" class="w-full px-3 py-2 rounded-xl border border-rose-100 outline-none focus:border-[#E8A5A5] text-sm">
+                    </div>
+                </div>
+
+                <!-- Sale in edit -->
+                <div class="p-3 bg-orange-50 rounded-xl border border-orange-100 mb-4">
+                    <div class="flex items-center justify-between mb-2">
+                        <p class="text-sm font-medium text-stone-700">🏷️ تخفيض / Sale</p>
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" id="e-onsale-${p.id}" class="sr-only peer" ${p.on_sale?'checked':''} onchange="toggleSaleBox('e-salefield-${p.id}', this)">
+                            <div class="w-10 h-5 bg-gray-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-orange-400"></div>
+                        </label>
+                    </div>
+                    <div id="e-salefield-${p.id}" class="${p.on_sale?'':'hidden'}">
+                        <label class="block text-stone-500 mb-1 text-xs">السعر الأصلي قبل التخفيض (₪)</label>
+                        <input type="number" id="e-origprice-${p.id}" value="${p.original_price||''}" min="0" step="0.01" placeholder="مثلاً: 100" class="w-full md:w-48 px-3 py-2 rounded-xl border border-orange-200 outline-none focus:border-orange-400 text-sm bg-white">
+                    </div>
+                </div>
+
+                <div class="mb-4">
+                    <label class="block text-stone-500 mb-1 text-xs">وصف المنتج</label>
+                    <textarea id="e-desc-${p.id}" rows="2" class="w-full px-3 py-2 rounded-xl border border-rose-100 outline-none focus:border-[#E8A5A5] text-sm resize-none">${escHtml(p.description||'')}</textarea>
+                </div>
+
+                <div class="grid md:grid-cols-2 gap-4 mb-4">
+                    <div>
+                        <label class="block text-stone-500 mb-1 text-xs">إجمالي المخزون</label>
+                        <input type="number" id="e-stock-${p.id}" value="${p.stock||0}" min="0" class="w-full px-3 py-2 rounded-xl border border-rose-100 outline-none focus:border-[#E8A5A5] text-sm">
+                    </div>
+                    <div class="flex items-end pb-1">
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <input type="checkbox" id="e-featured-${p.id}" class="w-4 h-4 accent-[#E8A5A5]" ${p.is_featured?'checked':''}>
+                            <span class="text-sm text-stone-600">منتج مميز ⭐</span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Shades in edit -->
+                <div class="mb-5">
+                    <div class="flex justify-between items-center mb-2">
+                        <label class="text-stone-500 text-xs font-medium">الألوان (Shades)</label>
+                        <button type="button" onclick="addShadeRow('e-shades-${p.id}')" class="text-[#E8A5A5] text-xs font-bold hover:text-[#D48989]">+ إضافة لون</button>
+                    </div>
+                    <div id="e-shades-${p.id}" class="space-y-2"></div>
+                </div>
+
+                <div class="flex gap-3">
+                    <button onclick="saveProduct('${p.id}')" id="save-btn-${p.id}" class="btn-primary px-6 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                        حفظ التعديلات
+                    </button>
+                    <button onclick="toggleEditPanel('${p.id}')" class="px-6 py-2.5 rounded-xl text-sm font-medium border border-[#F5E6E6] text-stone-500 hover:bg-[#FFF9F9]">
+                        إلغاء
+                    </button>
+                </div>
+            </div>
+        </div>
+    `).join('');
+
+    // Populate shade rows for each edit panel
+    products.forEach(p => {
+        const sc = document.getElementById(`e-shades-${p.id}`);
+        if (!sc) return;
+        sc.innerHTML = '';
+        if (p.shades && p.shades.length) {
+            p.shades.forEach(s => addShadeRow(`e-shades-${p.id}`, s));
+        } else {
+            addShadeRow(`e-shades-${p.id}`);
+        }
+    });
+}
+
+function toggleEditPanel(id) {
+    document.getElementById(`edit-panel-${id}`).classList.toggle('hidden');
+}
+
+// ─── SAVE (update) ────────────────────────────────────────────────────────────
+async function saveProduct(id) {
+    if (!supabaseClient) { alert('تعذّر الاتصال بقاعدة البيانات.'); return; }
+    const btn = document.getElementById(`save-btn-${id}`);
+    btn.disabled = true;
+    btn.innerHTML = '⏳ جاري الحفظ...';
+
+    try {
+        const onSale = document.getElementById(`e-onsale-${id}`).checked;
+        const origVal = document.getElementById(`e-origprice-${id}`).value;
+        const shades = collectShades(`e-shades-${id}`);
+        const stockInput = parseInt(document.getElementById(`e-stock-${id}`).value);
+        const totalStock = !isNaN(stockInput) ? stockInput : shades.reduce((s, sh) => s + sh.stock, 0);
+
+        const updates = {
+            name: document.getElementById(`e-name-${id}`).value,
+            nameEn: document.getElementById(`e-nameen-${id}`).value,
+            category: document.getElementById(`e-cat-${id}`).value,
+            price: parseFloat(document.getElementById(`e-price-${id}`).value),
+            on_sale: onSale,
+            original_price: onSale && origVal ? parseFloat(origVal) : null,
+            description: document.getElementById(`e-desc-${id}`).value,
+            stock: totalStock,
+            is_featured: document.getElementById(`e-featured-${id}`).checked,
+            shades
+        };
+
+        const { error } = await supabaseClient.from('products').update(updates).eq('id', id);
+        if (error) throw error;
+
+        const idx = allProducts.findIndex(p => String(p.id) === String(id));
+        if (idx !== -1) allProducts[idx] = { ...allProducts[idx], ...updates };
+
+        btn.innerHTML = '✅ تم الحفظ!';
+        setTimeout(() => {
+            renderProductList(allProducts);
+        }, 1000);
+    } catch (err) {
+        alert('خطأ في الحفظ: ' + err.message);
+        btn.disabled = false;
+        btn.innerHTML = '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg> حفظ التعديلات';
+    }
+}
+
+// ─── DELETE ───────────────────────────────────────────────────────────────────
+async function deleteProduct(id) {
+    if (!confirm('هل أنتِ متأكدة من حذف هذا المنتج؟ لا يمكن التراجع عن هذا الإجراء.')) return;
+    if (!supabaseClient) { alert('تعذّر الاتصال بقاعدة البيانات.'); return; }
+    try {
+        const { error } = await supabaseClient.from('products').delete().eq('id', id);
+        if (error) throw error;
+        allProducts = allProducts.filter(p => String(p.id) !== String(id));
+        const row = document.getElementById(`row-${id}`);
+        if (row) { row.style.opacity = '0'; row.style.transition = 'opacity 0.3s'; setTimeout(() => renderProductList(allProducts), 300); }
+        else renderProductList(allProducts);
+    } catch (err) {
+        alert('خطأ في الحذف: ' + err.message);
+    }
+}
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+function escHtml(v) {
+    return String(v||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+</script>
+</body>
 </html>
