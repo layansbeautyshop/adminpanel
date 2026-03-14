@@ -33,6 +33,7 @@
     .fade-in { animation: fadeIn 0.4s ease; }
     @keyframes fadeIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
     .category-badge { display:inline-block; padding:2px 10px; border-radius:20px; font-size:0.75rem; font-weight:600; background:#FFF0F0; color:#E8A5A5; border:1px solid #F5E6E6; }
+    .sale-cat-badge { background: linear-gradient(135deg,#fff0ea,#ffe4d6); color:#ee5a24; border:1px solid #ffd5c0; }
 </style>
 
 <body class="p-4 md:p-8 min-h-screen">
@@ -94,11 +95,13 @@
                                     <option value="gifts">هدايا • Gifts</option>
                                     <option value="packages">باكدجات • Packages</option>
                                     <option value="nails">أظافر • Nails</option>
+                                    <option value="accessories">اكسسوارات • Accessories</option>
+                                    <option value="sale">مخفض • Sale</option>
                                 </select>
                             </div>
                             <div>
                                 <label class="block text-stone-600 mb-2 font-medium">السعر (₪)</label>
-                                <input type="number" id="p-price" required class="w-full px-4 py-3 rounded-xl border border-rose-100 outline-none focus:border-[#E8A5A5] transition-all" placeholder="85" min="0" step="0.01">
+                                <input type="number" id="p-price" required oninput="calcDiscount('p-original-price','p-price','p-discount-pct')" class="w-full px-4 py-3 rounded-xl border border-rose-100 outline-none focus:border-[#E8A5A5] transition-all" placeholder="85" min="0" step="0.01">
                             </div>
                         </div>
 
@@ -107,17 +110,24 @@
                             <div class="flex items-center justify-between mb-3">
                                 <div>
                                     <p class="font-medium text-stone-700">🏷️ تخفيض / Sale</p>
-                                    <p class="text-xs text-stone-400 mt-1">فعّلي هذا الخيار إذا كان المنتج في تخفيض</p>
+                                    <p class="text-xs text-stone-400 mt-1">فعّلي هذا الخيار وسيظهر المنتج تلقائياً في صفحة المخفض بالإضافة لتصنيفه الأصلي</p>
                                 </div>
                                 <label class="relative inline-flex items-center cursor-pointer">
                                     <input type="checkbox" id="p-on-sale" class="sr-only peer" onchange="toggleSaleBox('sale-fields-add', this)">
                                     <div class="w-11 h-6 bg-gray-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-orange-400"></div>
                                 </label>
                             </div>
-                            <div id="sale-fields-add" class="hidden">
-                                <label class="block text-stone-500 mb-1 text-sm">السعر الأصلي قبل التخفيض (₪)</label>
-                                <input type="number" id="p-original-price" class="w-full md:w-56 px-4 py-2 rounded-xl border border-orange-200 outline-none focus:border-orange-400 text-sm bg-white" placeholder="مثلاً: 100" min="0" step="0.01">
-                                <p class="text-xs text-stone-400 mt-1">السعر الحالي (بعد التخفيض) يُؤخذ من حقل "السعر" بالأعلى</p>
+                            <div id="sale-fields-add" class="hidden space-y-2">
+                                <div>
+                                    <label class="block text-stone-500 mb-1 text-sm">السعر الأصلي قبل التخفيض (₪)</label>
+                                    <input type="number" id="p-original-price" oninput="calcDiscount('p-original-price','p-price','p-discount-pct')" class="w-full md:w-56 px-4 py-2 rounded-xl border border-orange-200 outline-none focus:border-orange-400 text-sm bg-white" placeholder="مثلاً: 150" min="0" step="0.01">
+                                </div>
+                                <div class="flex items-center gap-3">
+                                    <p class="text-xs text-stone-400">نسبة الخصم المحسوبة تلقائياً:</p>
+                                    <span id="p-discount-pct-display" class="text-sm font-bold text-orange-500">—</span>
+                                    <input type="hidden" id="p-discount-pct">
+                                </div>
+                                <p class="text-xs text-stone-400">السعر الحالي (بعد التخفيض) يُؤخذ من حقل "السعر" بالأعلى</p>
                             </div>
                         </div>
 
@@ -136,6 +146,12 @@
                                 <input type="checkbox" id="p-featured" class="sr-only peer">
                                 <div class="w-11 h-6 bg-gray-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#E8A5A5]"></div>
                             </label>
+                        </div>
+
+                        <!-- Stock -->
+                        <div>
+                            <label class="block text-stone-600 mb-2 font-medium">إجمالي المخزون</label>
+                            <input type="number" id="p-stock" class="w-full px-4 py-3 rounded-xl border border-rose-100 outline-none focus:border-[#E8A5A5] transition-all" placeholder="0" min="0">
                         </div>
 
                         <!-- Photos -->
@@ -179,7 +195,20 @@
                         <li class="flex items-start gap-2"><span class="text-[#E8A5A5]">•</span><span>يمكنك إضافة أكثر من لون للمنتج الواحد.</span></li>
                         <li class="flex items-start gap-2"><span class="text-[#E8A5A5]">•</span><span>المنتجات ستظهر فوراً في الموقع بعد الحفظ.</span></li>
                         <li class="flex items-start gap-2"><span class="text-[#E8A5A5]">•</span><span>فعّلي خيار التخفيض لعرض السعر الأصلي مشطوباً.</span></li>
+                        <li class="flex items-start gap-2"><span class="text-[#E8A5A5]">•</span><span>تصنيف "مخفض" يعرض المنتج في صفحة العروض.</span></li>
                         <li class="flex items-start gap-2"><span class="text-[#E8A5A5]">•</span><span>يمكنك تعديل أي منتج من تبويب "المنتجات المحفوظة".</span></li>
+                    </ul>
+                </div>
+
+                <!-- Supabase instructions -->
+                <div class="glass-card rounded-3xl p-8 bg-blue-50/50 border-blue-100">
+                    <h3 class="font-bold text-stone-700 mb-4">⚙️ إعداد Supabase</h3>
+                    <p class="text-stone-500 text-xs mb-3">تأكدي من وجود هذه الأعمدة في جدول <code class="bg-white px-1 py-0.5 rounded text-rose-400">products</code>:</p>
+                    <ul class="text-xs text-stone-500 space-y-1 font-mono">
+                        <li>• <span class="text-blue-500">on_sale</span> — boolean, default false</li>
+                        <li>• <span class="text-blue-500">original_price</span> — numeric, nullable</li>
+                        <li>• <span class="text-blue-500">discount_pct</span> — numeric, nullable</li>
+                        <li>• <span class="text-blue-500">category</span> — text (يشمل: sale, accessories)</li>
                     </ul>
                 </div>
             </div>
@@ -200,6 +229,8 @@
                 <option value="gifts">هدايا</option>
                 <option value="packages">باكدجات</option>
                 <option value="nails">أظافر</option>
+                <option value="accessories">اكسسوارات</option>
+                <option value="sale">مخفض</option>
             </select>
             <button onclick="loadProducts()" class="btn-primary px-5 py-2 rounded-xl text-sm font-semibold flex items-center gap-2">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
@@ -230,6 +261,20 @@ const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS
 const supabaseClient = (window.supabase && typeof window.supabase.createClient === 'function')
     ? window.supabase.createClient(supabaseUrl, supabaseKey) : null;
 
+// ─── All categories ───────────────────────────────────────────────────────────
+const CATEGORIES = {
+    face: 'الوجه',
+    lips: 'الشفاه',
+    eyes: 'العيون',
+    foundation: 'الأساس',
+    setting: 'مثبتات',
+    gifts: 'هدايا',
+    packages: 'باكدجات',
+    nails: 'أظافر',
+    accessories: 'اكسسوارات',
+    sale: 'مخفض'
+};
+
 // ─── Tabs ─────────────────────────────────────────────────────────────────────
 function switchTab(tab, btn) {
     document.getElementById('tab-add').classList.toggle('hidden', tab !== 'add');
@@ -238,11 +283,44 @@ function switchTab(tab, btn) {
     btn.classList.add('active');
 }
 
-// ─── Sale toggle ──────────────────────────────────────────────────────────────
+// ─── Auto-calculate discount % ────────────────────────────────────────────────
+function calcDiscount(origId, saleId, hiddenId) {
+    const orig = parseFloat(document.getElementById(origId)?.value);
+    const sale = parseFloat(document.getElementById(saleId)?.value);
+    const display = document.getElementById(origId.replace('original-price','discount-pct-display').replace('p-original-price','p-discount-pct-display'));
+    const hidden = document.getElementById(hiddenId);
+    if (orig > 0 && sale >= 0 && sale < orig) {
+        const pct = Math.round((orig - sale) / orig * 100);
+        if (display) display.textContent = '-' + pct + '%';
+        if (hidden) hidden.value = pct;
+    } else {
+        if (display) display.textContent = '—';
+        if (hidden) hidden.value = '';
+    }
+}
+
+function calcDiscountEdit(productId) {
+    const orig = parseFloat(document.getElementById(`e-origprice-${productId}`)?.value);
+    const sale = parseFloat(document.getElementById(`e-price-${productId}`)?.value);
+    const display = document.getElementById(`e-discpct-display-${productId}`);
+    const hidden = document.getElementById(`e-discpct-${productId}`);
+    if (orig > 0 && sale >= 0 && sale < orig) {
+        const pct = Math.round((orig - sale) / orig * 100);
+        if (display) display.textContent = '-' + pct + '%';
+        if (hidden) hidden.value = pct;
+    } else {
+        if (display) display.textContent = '—';
+        if (hidden) hidden.value = '';
+    }
+}
+
+
 function toggleSaleBox(fieldId, checkbox) {
     const el = document.getElementById(fieldId);
     if (el) el.classList.toggle('hidden', !checkbox.checked);
 }
+
+
 
 // ─── Drag & Drop ──────────────────────────────────────────────────────────────
 const dragZone = document.getElementById('drag-zone');
@@ -336,10 +414,14 @@ document.getElementById('product-form').onsubmit = async (e) => {
     btn.textContent = 'جاري الحفظ...';
     try {
         const shades = collectShades('shades-container');
-        const totalStock = shades.reduce((s, sh) => s + sh.stock, 0);
+        const stockInput = parseInt(document.getElementById('p-stock').value);
+        const totalStock = !isNaN(stockInput) && stockInput > 0
+            ? stockInput
+            : shades.reduce((s, sh) => s + sh.stock, 0);
         const images = Array.from(document.querySelectorAll('#image-preview img')).map(i => i.src);
         const onSale = document.getElementById('p-on-sale').checked;
         const origVal = document.getElementById('p-original-price').value;
+        const discPct = document.getElementById('p-discount-pct').value;
 
         const productData = {
             name: document.getElementById('p-name').value,
@@ -348,6 +430,7 @@ document.getElementById('product-form').onsubmit = async (e) => {
             price: parseFloat(document.getElementById('p-price').value),
             on_sale: onSale,
             original_price: onSale && origVal ? parseFloat(origVal) : null,
+            discount_pct: onSale && discPct ? parseFloat(discPct) : null,
             description: document.getElementById('p-desc').value,
             shades, images, stock: totalStock,
             is_featured: document.getElementById('p-featured').checked,
@@ -401,7 +484,7 @@ function filterProductList() {
 }
 
 function categoryLabel(cat) {
-    return { face:'الوجه', lips:'الشفاه', eyes:'العيون', foundation:'الأساس', setting:'مثبتات', gifts:'هدايا', packages:'باكدجات', nails:'أظافر' }[cat] || cat;
+    return CATEGORIES[cat] || cat;
 }
 
 function renderProductList(products) {
@@ -415,6 +498,8 @@ function renderProductList(products) {
         return;
     }
     empty.classList.add('hidden');
+
+    const catOptions = Object.entries(CATEGORIES).map(([v, l]) => `<option value="${v}">{l}</option>`).join('');
 
     container.innerHTML = products.map(p => `
         <div class="glass-card rounded-2xl overflow-hidden product-row" id="row-${p.id}">
@@ -431,9 +516,10 @@ function renderProductList(products) {
                         ${p.is_featured ? '<span class="text-yellow-500">⭐</span>' : ''}
                     </div>
                     <div class="flex items-center gap-2 mt-1 flex-wrap">
-                        <span class="category-badge">${categoryLabel(p.category)}</span>
+                        <span class="category-badge ${p.category==='sale'?'sale-cat-badge':''}">${categoryLabel(p.category)}</span>
                         <span class="text-sm font-bold text-[#E8A5A5]">₪${p.price}</span>
                         ${p.on_sale && p.original_price ? `<span class="text-xs text-stone-400 line-through">₪${p.original_price}</span>` : ''}
+                        ${p.on_sale && p.discount_pct ? `<span class="text-xs text-orange-500 font-bold">-${p.discount_pct}%</span>` : ''}
                         <span class="text-xs text-stone-400">مخزون: ${p.stock || 0}</span>
                     </div>
                 </div>
@@ -462,14 +548,14 @@ function renderProductList(products) {
                     <div>
                         <label class="block text-stone-500 mb-1 text-xs">التصنيف</label>
                         <select id="e-cat-${p.id}" class="w-full px-3 py-2 rounded-xl border border-rose-100 outline-none focus:border-[#E8A5A5] text-sm bg-white">
-                            ${['face','lips','eyes','foundation','setting','gifts','packages','nails'].map(c =>
-                                `<option value="${c}" ${p.category===c?'selected':''}>${categoryLabel(c)}</option>`
+                            ${Object.entries(CATEGORIES).map(([v,l]) =>
+                                `<option value="${v}" ${p.category===v?'selected':''}>${l}</option>`
                             ).join('')}
                         </select>
                     </div>
                     <div>
                         <label class="block text-stone-500 mb-1 text-xs">السعر الحالي (₪)</label>
-                        <input type="number" id="e-price-${p.id}" value="${p.price}" min="0" step="0.01" class="w-full px-3 py-2 rounded-xl border border-rose-100 outline-none focus:border-[#E8A5A5] text-sm">
+                        <input type="number" id="e-price-${p.id}" value="${p.price}" min="0" step="0.01" oninput="calcDiscountEdit('${p.id}')" class="w-full px-3 py-2 rounded-xl border border-rose-100 outline-none focus:border-[#E8A5A5] text-sm">
                     </div>
                 </div>
 
@@ -482,9 +568,18 @@ function renderProductList(products) {
                             <div class="w-10 h-5 bg-gray-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-orange-400"></div>
                         </label>
                     </div>
-                    <div id="e-salefield-${p.id}" class="${p.on_sale?'':'hidden'}">
-                        <label class="block text-stone-500 mb-1 text-xs">السعر الأصلي قبل التخفيض (₪)</label>
-                        <input type="number" id="e-origprice-${p.id}" value="${p.original_price||''}" min="0" step="0.01" placeholder="مثلاً: 100" class="w-full md:w-48 px-3 py-2 rounded-xl border border-orange-200 outline-none focus:border-orange-400 text-sm bg-white">
+                    <div id="e-salefield-${p.id}" class="${p.on_sale?'':'hidden'} space-y-2">
+                        <div>
+                            <label class="block text-stone-500 mb-1 text-xs">السعر الأصلي قبل التخفيض (₪)</label>
+                            <input type="number" id="e-origprice-${p.id}" value="${p.original_price||''}" min="0" step="0.01" placeholder="مثلاً: 150" oninput="calcDiscountEdit('${p.id}')" class="w-full md:w-48 px-3 py-2 rounded-xl border border-orange-200 outline-none focus:border-orange-400 text-sm bg-white">
+                        </div>
+                        <div>
+                            <label class="block text-stone-500 mb-1 text-xs">نسبة الخصم المحسوبة تلقائياً:</label>
+                            <div class="flex items-center gap-2">
+                                <span id="e-discpct-display-${p.id}" class="text-sm font-bold text-orange-500">${p.on_sale && p.original_price && p.price ? '-' + Math.round((p.original_price - p.price) / p.original_price * 100) + '%' : '—'}</span>
+                                <input type="hidden" id="e-discpct-${p.id}" value="${p.discount_pct||''}">
+                            </div>
+                        </div>
                     </div>
                 </div>
 
@@ -555,6 +650,7 @@ async function saveProduct(id) {
     try {
         const onSale = document.getElementById(`e-onsale-${id}`).checked;
         const origVal = document.getElementById(`e-origprice-${id}`).value;
+        const discPct = document.getElementById(`e-discpct-${id}`).value;
         const shades = collectShades(`e-shades-${id}`);
         const stockInput = parseInt(document.getElementById(`e-stock-${id}`).value);
         const totalStock = !isNaN(stockInput) ? stockInput : shades.reduce((s, sh) => s + sh.stock, 0);
@@ -566,6 +662,7 @@ async function saveProduct(id) {
             price: parseFloat(document.getElementById(`e-price-${id}`).value),
             on_sale: onSale,
             original_price: onSale && origVal ? parseFloat(origVal) : null,
+            discount_pct: onSale && discPct ? parseFloat(discPct) : null,
             description: document.getElementById(`e-desc-${id}`).value,
             stock: totalStock,
             is_featured: document.getElementById(`e-featured-${id}`).checked,
@@ -579,9 +676,7 @@ async function saveProduct(id) {
         if (idx !== -1) allProducts[idx] = { ...allProducts[idx], ...updates };
 
         btn.innerHTML = '✅ تم الحفظ!';
-        setTimeout(() => {
-            renderProductList(allProducts);
-        }, 1000);
+        setTimeout(() => { renderProductList(allProducts); }, 1000);
     } catch (err) {
         alert('خطأ في الحفظ: ' + err.message);
         btn.disabled = false;
