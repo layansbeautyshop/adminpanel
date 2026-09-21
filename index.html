@@ -359,8 +359,8 @@ dialog::backdrop { background:#28121dcc;backdrop-filter:blur(3px); }
                         <!-- Featured + Stock -->
                         <div class="grid md:grid-cols-2 gap-5">
                             <div>
-                                <label class="field-label" for="p-stock">إجمالي المخزون</label>
-                                <input type="number" id="p-stock" class="field-input" placeholder="0" min="0">
+                                <label class="field-label" for="p-stock">إجمالي المخزون (محسوب من الألوان)</label>
+                                <input type="number" id="p-stock" readonly value="0" class="field-input" placeholder="0" min="0">
                             </div>
                         </div>
 
@@ -490,6 +490,70 @@ const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS
 const db = (window.supabase && typeof window.supabase.createClient === 'function')
     ? window.supabase.createClient(supabaseUrl, supabaseKey) : null;
 
+// Shared source embedded in both standalone pages by build-inventory-pages.cjs.
+const CATALOGUE_FIELDS = 'id,name,nameEn,price,original_price,discount_pct,on_sale,description,stock,category,created_at';
+const SHADE_BATCH = 4;
+function catalogueSelect(start = 0, photos = true) {
+  const fields = [CATALOGUE_FIELDS];
+  for (let i = start; i < start + SHADE_BATCH; i++) {
+    for (const field of ['id', 'name', 'color', 'stock', ...(photos ? ['image'] : [])]) {
+      fields.push(`s${i}_${field}:shades->${i}->${field}`);
+    }
+  }
+  fields.push(`more:shades->${start + SHADE_BATCH}->id`);
+  return fields.join(',');
+}
+async function decodeCatalogueRow(row, photos = true) {
+  const product = Object.fromEntries(CATALOGUE_FIELDS.split(',').map(key => [key, row[key]]));
+  product.shades = [];
+  for (let start = 0; ; start += SHADE_BATCH) {
+    for (let i = start; i < start + SHADE_BATCH; i++) {
+      if (row[`s${i}_id`] == null && row[`s${i}_name`] == null) continue;
+      product.shades.push({ id: row[`s${i}_id`] ?? `shade-${i}`, name: row[`s${i}_name`] || '',
+        color: row[`s${i}_color`] || '#E8A5A5', stock: row[`s${i}_stock`] ?? null,
+        image: row[`s${i}_image`] || '', _index: i });
+    }
+    if (row.more == null) break;
+    const next = await catalogueRequest(`products?id=eq.${encodeURIComponent(product.id)}&select=${catalogueSelect(start + SHADE_BATCH, photos)}`);
+    if (!Array.isArray(next) || !next.length) throw new Error('Product changed; please reload');
+    row = next[0];
+  }
+  product.images = product.shades.map(s => s.image).filter(Boolean);
+  return product;
+}
+async function readCatalogueProduct(id, photos = false) {
+  const rows = await catalogueRequest(`products?id=eq.${encodeURIComponent(id)}&select=${catalogueSelect(0, photos)}`);
+  if (!Array.isArray(rows)) throw new Error('Invalid product catalogue');
+  return rows.length ? decodeCatalogueRow(rows[0], photos) : null;
+}
+async function readCatalogue() {
+  const metadata = [];
+  for (let offset = 0; ; offset += 200) {
+    const rows = await catalogueRequest(`products?select=${CATALOGUE_FIELDS}&order=created_at.desc,id.asc&limit=200&offset=${offset}`);
+    if (!Array.isArray(rows)) throw new Error('Invalid product catalogue');
+    metadata.push(...rows);
+    if (rows.length < 200) break;
+  }
+  const results = new Map();
+  let next = 0;
+  async function worker() {
+    while (next < metadata.length) {
+      const ids = metadata.slice(next, next += 5).map(row => row.id);
+      const rows = await catalogueRequest(`products?id=in.(${ids.map(encodeURIComponent).join(',')})&select=${catalogueSelect()}`);
+      if (!Array.isArray(rows)) throw new Error('Invalid product catalogue');
+      for (const row of rows) results.set(row.id, await decodeCatalogueRow(row));
+    }
+  }
+  await Promise.all(Array.from({length: 4}, worker));
+  return metadata.filter(row => results.has(row.id)).map(row => results.get(row.id));
+}
+
+async function catalogueRequest(path) {
+  const response = await fetch(`${supabaseUrl}/rest/v1/${path}`, { headers: { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}` }, cache: 'no-store', signal: AbortSignal.timeout(20000) });
+  if (!response.ok) throw new Error('تعذّر تحميل المنتجات (' + response.status + ')');
+  return response.json();
+}
+
 const CATEGORIES = { face:'الوجه', lips:'الشفاه', eyes:'العيون', foundation:'الأساس', setting:'مثبتات', gifts:'هدايا', packages:'باكدجات', nails:'أظافر', accessories:'اكسسوارات', sale:'مخفض' };
 
 // ─── Toast ─────────────────────────────────────────────────────────────────────
@@ -554,6 +618,12 @@ function toggleSaleBox(fieldId, cb) {
 }
 
 // ─── SHADE ROWS with multiple photos ──────────────────────────────────────────
+function syncShadeStock(containerId) {
+    const inputId = containerId === 'shades-container' ? 'p-stock' : containerId.replace('e-shades-', 'e-stock-');
+    const total = Array.from(document.getElementById(containerId).querySelectorAll('input[type="number"]')).reduce((sum, input) => sum + Math.max(0, Number(input.value) || 0), 0);
+    const input = document.getElementById(inputId);
+    if (input) input.value = total;
+}
 function addShadeRow(containerId, shade) {
     const container = document.getElementById(containerId);
     if (!container) return;
@@ -576,7 +646,7 @@ function addShadeRow(containerId, shade) {
                 <input type="text" aria-label="اسم اللون" class="field-input text-sm py-2" placeholder="اسم اللون — مثلاً: خوخي" value="${shade ? esc(shade.name||'') : ''}">
                 <div class="flex items-center gap-2">
                     <label class="text-xs text-stone-400 whitespace-nowrap">مخزون</label>
-                    <input type="number" aria-label="مخزون اللون" class="field-input text-sm py-2 w-20" min="0" value="${shade ? (shade.stock||0) : 10}">
+                    <input type="number" aria-label="مخزون اللون" class="field-input text-sm py-2 w-20" min="0" oninput="syncShadeStock('${containerId}')" value="${shade ? (shade.stock ?? 0) : 0}">
                 </div>
             </div>
             <!-- Photos strip -->
@@ -586,11 +656,12 @@ function addShadeRow(containerId, shade) {
                 <input type="file" id="fileinput-${rowId}" accept="image/*" multiple class="hidden" onchange="handleShadePhotos(this, '${rowId}')">
             </div>
             <!-- Delete row -->
-            <button type="button" aria-label="حذف اللون" title="حذف اللون" onclick="this.closest('.shade-row').remove(); updateProductPreview()" class="p-1.5 text-stone-300 hover:text-red-400 transition-colors flex-shrink-0 mt-1">
+            <button type="button" aria-label="حذف اللون" title="حذف اللون" onclick="this.closest('.shade-row').remove(); syncShadeStock('${containerId}'); updateProductPreview()" class="p-1.5 text-stone-300 hover:text-red-400 transition-colors flex-shrink-0 mt-1">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
             </button>
         </div>`;
     container.appendChild(div);
+    syncShadeStock(containerId);
     // Render existing photos and the add-photo button
     renderShadePhotosStrip(rowId, div, existingImages);
 }
@@ -829,7 +900,7 @@ document.getElementById('product-form').onsubmit = async (e) => {
         validateProductFields();
         const shades = collectShades('shades-container');
         const stockInput = parseInt(document.getElementById('p-stock').value);
-        const totalStock = stockInput;
+        const totalStock = shades.length ? shades.reduce((sum, shade) => sum + Number(shade.stock ?? 0), 0) : stockInput;
         const onSale  = document.getElementById('p-on-sale').checked;
         const origVal = document.getElementById('p-original-price').value;
         const discPct = document.getElementById('p-discount-pct').value;
@@ -862,37 +933,27 @@ document.getElementById('product-form').onsubmit = async (e) => {
 // ─── LOAD products ─────────────────────────────────────────────────────────────
 let allProducts = [];
 
+let loadingProducts = false;
 async function loadProducts() {
-    if (!db) { showToast('تعذّر الاتصال', 'error'); return; }
+    if (loadingProducts) return;
+    loadingProducts = true;
     document.getElementById('list-loading').classList.remove('hidden');
-    document.getElementById('product-list').innerHTML = '';
     document.getElementById('list-empty').classList.add('hidden');
     try {
-        // Inline image galleries make a single catalogue response too large.
-        // Publish only a complete result so partial failures cannot hide products.
-        const rows = [];
-        for (let offset = 0; ; offset += 10) {
-            const { data, error } = await db.from('products').select('*')
-                .order('created_at', { ascending: false }).order('id', { ascending: true })
-                .range(offset, offset + 9);
-            if (error) throw error;
-            if (!Array.isArray(data)) throw new Error('Invalid product catalogue');
-            rows.push(...data);
-            if (data.length < 10) break;
-        }
-        allProducts = rows;
+        allProducts = await readCatalogue();
         renderProductList(allProducts);
     } catch (err) { showToast('خطأ في التحميل: ' + err.message, 'error'); }
-    finally { document.getElementById('list-loading').classList.add('hidden'); }
+    finally { loadingProducts = false; document.getElementById('list-loading').classList.add('hidden'); }
 }
 
 // Effective stock: if the product has shades with their own stock values,
 // the real availability is the sum of those shade stocks (matches storefront
 // logic, which checks per-shade stock). Falls back to the product-level stock.
 function getEffectiveStock(p) {
-    const shades = (p.shades || []).filter(s => s.stock !== undefined && s.stock !== null);
-    if (shades.length > 0) return shades.reduce((sum, s) => sum + (Number(s.stock) || 0), 0);
-    return p.stock || 0;
+    const stock = value => Math.max(0, Number(value) || 0);
+    return p.shades?.length
+        ? p.shades.reduce((sum, shade) => sum + stock(shade.stock ?? p.stock), 0)
+        : stock(p.stock);
 }
 
 function filterProductList() {
@@ -920,6 +981,8 @@ function renderProductList(products) {
     document.getElementById('product-count').textContent = `${products.length} منتج`;
 
     // Update stats strip (based on allProducts, not filtered)
+    document.getElementById('stats-strip').classList.toggle('hidden', !allProducts.length);
+    document.getElementById('low-stock-warning').classList.add('hidden');
     if (allProducts.length > 0) {
         const totalAll = allProducts.length;
         const onSale   = allProducts.filter(p => p.on_sale).length;
@@ -1008,7 +1071,7 @@ function renderProductList(products) {
                 </div>
                 <div class="mb-4"><label class="field-label" for="e-desc-${p.id}">وصف المنتج</label><textarea id="e-desc-${p.id}" rows="2" class="field-input text-sm py-2 resize-none">${esc(p.description||'')}</textarea></div>
                 <div class="grid md:grid-cols-2 gap-4 mb-5">
-                    <div><label class="field-label" for="e-stock-${p.id}">المخزون</label><input type="number" id="e-stock-${p.id}" value="${p.stock||0}" min="0" class="field-input text-sm py-2"></div>
+                    <div><label class="field-label" for="e-stock-${p.id}">إجمالي مخزون الألوان</label><input type="number" id="e-stock-${p.id}" readonly value="${p.stock||0}" min="0" class="field-input text-sm py-2"></div>
                 </div>
                 <!-- Shades edit -->
                 <div class="mb-5">
@@ -1028,19 +1091,32 @@ function renderProductList(products) {
             </div>
         </div>`).join('');
 
-    products.forEach(p => {
-        const sc = document.getElementById(`e-shades-${p.id}`);
-        if (!sc) return;
-        sc.innerHTML = '';
-        if (p.shades && p.shades.length) { p.shades.forEach(s => addShadeRow(`e-shades-${p.id}`, s)); }
-        else { addShadeRow(`e-shades-${p.id}`, { name: 'الأساسي', stock: p.stock || 0, images: p.images || [] }); }
-    });
 }
 
-function toggleEditPanel(id) {
+async function toggleEditPanel(id) {
     const panel = document.getElementById(`edit-panel-${id}`);
-    panel.classList.toggle('hidden');
-    document.getElementById(`row-${id}`).querySelector('.edit-trigger').setAttribute('aria-expanded', String(!panel.classList.contains('hidden')));
+    if (panel.dataset.loading === 'true') return;
+    if (!panel.classList.contains('hidden')) { panel.classList.add('hidden'); document.getElementById(`row-${id}`).querySelector('.edit-trigger').setAttribute('aria-expanded', 'false'); return; }
+    const button = document.getElementById(`save-btn-${id}`);
+    button.disabled = true;
+    panel.dataset.loading = 'true';
+    try {
+        if (panel.dataset.loaded !== 'true') {
+            // Always obtain the full gallery before permitting a save.
+            const rows = await catalogueRequest(`products?id=eq.${encodeURIComponent(id)}&select=shades,images,stock`);
+            if (!rows[0]) throw new Error('المنتج لم يعد موجوداً');
+            const p = rows[0];
+            const container = document.getElementById(`e-shades-${id}`);
+            container.innerHTML = '';
+            const shades = p.shades?.length ? p.shades : [{ id: '', name: 'الأساسي', stock: p.stock ?? 0, images: p.images || [] }];
+            shades.forEach(shade => addShadeRow(`e-shades-${id}`, { ...shade, stock: shade.stock ?? p.stock ?? 0 }));
+            panel.dataset.loaded = 'true';
+        }
+        panel.classList.remove('hidden');
+        document.getElementById(`row-${id}`).querySelector('.edit-trigger').setAttribute('aria-expanded', 'true');
+        button.disabled = false;
+    } catch (error) { showToast('تعذّر تحميل صور المنتج: ' + error.message, 'error'); }
+    finally { panel.dataset.loading = 'false'; }
 }
 
 async function saveProduct(id) {
@@ -1048,13 +1124,14 @@ async function saveProduct(id) {
     const btn = document.getElementById(`save-btn-${id}`);
     btn.disabled = true; btn.innerHTML = 'جاري الحفظ...';
     try {
+        if (document.getElementById(`edit-panel-${id}`).dataset.loaded !== 'true') throw new Error('يرجى تحميل المنتج قبل الحفظ');
         validateProductFields(id);
         const onSale  = document.getElementById(`e-onsale-${id}`).checked;
         const origVal = document.getElementById(`e-origprice-${id}`).value;
         const discPct = document.getElementById(`e-discpct-${id}`).value;
         const shades  = collectShades(`e-shades-${id}`);
         const stockInput = parseInt(document.getElementById(`e-stock-${id}`).value);
-        const totalStock = stockInput;
+        const totalStock = shades.length ? shades.reduce((sum, s) => sum + Number(s.stock ?? 0), 0) : stockInput;
         const allImages  = shades.flatMap(s => s.images || (s.image ? [s.image] : []));
         const updates = {
             name: document.getElementById(`e-name-${id}`).value,
