@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>لوحة التحكم — متجر ليان</title>
     <script src="https://cdn.tailwindcss.com/3.4.17"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700&family=Cormorant+Garamond:ital,wght@0,400;0,600;1,400;1,600&display=swap" rel="stylesheet">
 </head>
 <style>
@@ -250,6 +249,16 @@ dialog::backdrop { background:#28121dcc;backdrop-filter:blur(3px); }
 
 <body class="p-4 md:p-8 min-h-screen">
 <div id="toast-container"></div>
+<div id="auth-screen" class="fixed inset-0 z-50 flex items-center justify-center p-4" style="background:#FFFBF9">
+    <form id="auth-form" class="glass-card rounded-3xl p-8 w-full max-w-sm space-y-4">
+        <p class="brand-eyebrow">LAYAN’S BEAUTY · إدارة المتجر</p>
+        <h1 class="text-2xl font-bold text-stone-700">تسجيل الدخول</h1>
+        <input id="auth-email" type="email" autocomplete="username" required class="field-input" placeholder="البريد الإلكتروني" aria-label="البريد الإلكتروني">
+        <input id="auth-password" type="password" autocomplete="current-password" required class="field-input" placeholder="كلمة المرور" aria-label="كلمة المرور">
+        <p id="auth-error" class="text-sm text-red-500 hidden" role="alert"></p>
+        <button type="submit" class="btn-primary w-full">دخول</button>
+    </form>
+</div>
 <div class="max-w-6xl mx-auto">
 
     <!-- Header -->
@@ -260,6 +269,7 @@ dialog::backdrop { background:#28121dcc;backdrop-filter:blur(3px); }
             <p class="header-description">أضيفي المنتجات، رتّبي صور الألوان، وتابعي المخزون من مكان واحد.</p>
         </div>
         <div class="brand-monogram" aria-hidden="true">L<span>BEAUTY</span></div>
+        <button type="button" onclick="fb.signOut(fb.auth)" class="text-sm text-white/80 hover:text-white underline self-start">تسجيل الخروج</button>
     </header>
 
     <!-- Tabs -->
@@ -484,74 +494,67 @@ dialog::backdrop { background:#28121dcc;backdrop-filter:blur(3px); }
 </div><!-- /max-w -->
 
 <script>
-// ─── Supabase ──────────────────────────────────────────────────────────────────
-const supabaseUrl = 'https://mdfrvmsruwzhhszoqumn.supabase.co';
-const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kZnJ2bXNydXd6aGhzem9xdW1uIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI2NTMyOTksImV4cCI6MjA4ODIyOTI5OX0.rwIAoCZSVecvyvZA6Vhm1tPbzSBhgggpdy_xJ6aKjbM';
-const db = (window.supabase && typeof window.supabase.createClient === 'function')
-    ? window.supabase.createClient(supabaseUrl, supabaseKey) : null;
+const SHOP_ORIGIN = 'https://layansbeauty.pages.dev';
+const PHOTO_ID = /^[a-f0-9]{24}$/;
+const MAX_PHOTO_BYTES = 900 * 1024;
+const firebaseReady = new Promise(resolve => window.addEventListener('firebase-ready', resolve, { once: true }));
 
-// Shared source embedded in both standalone pages by build-inventory-pages.cjs.
-const CATALOGUE_FIELDS = 'id,name,nameEn,price,original_price,discount_pct,on_sale,description,stock,category,created_at';
-const SHADE_BATCH = 4;
-function catalogueSelect(start = 0, photos = true) {
-  const fields = [CATALOGUE_FIELDS];
-  for (let i = start; i < start + SHADE_BATCH; i++) {
-    for (const field of ['id', 'name', 'color', 'stock', ...(photos ? ['image'] : [])]) {
-      fields.push(`s${i}_${field}:shades->${i}->${field}`);
-    }
-  }
-  fields.push(`more:shades->${start + SHADE_BATCH}->id`);
-  return fields.join(',');
+function photoSrc(value) {
+    if (typeof value !== 'string') return '';
+    return PHOTO_ID.test(value) ? `${SHOP_ORIGIN}/api/photo/${value}` : value;
 }
-async function decodeCatalogueRow(row, photos = true) {
-  const product = Object.fromEntries(CATALOGUE_FIELDS.split(',').map(key => [key, row[key]]));
-  product.shades = [];
-  for (let start = 0; ; start += SHADE_BATCH) {
-    for (let i = start; i < start + SHADE_BATCH; i++) {
-      if (row[`s${i}_id`] == null && row[`s${i}_name`] == null) continue;
-      product.shades.push({ id: row[`s${i}_id`] ?? `shade-${i}`, name: row[`s${i}_name`] || '',
-        color: row[`s${i}_color`] || '#E8A5A5', stock: row[`s${i}_stock`] ?? null,
-        image: row[`s${i}_image`] || '', _index: i });
-    }
-    if (row.more == null) break;
-    const next = await catalogueRequest(`products?id=eq.${encodeURIComponent(product.id)}&select=${catalogueSelect(start + SHADE_BATCH, photos)}`);
-    if (!Array.isArray(next) || !next.length) throw new Error('Product changed; please reload');
-    row = next[0];
-  }
-  product.images = product.shades.map(s => s.image).filter(Boolean);
-  return product;
+
+function adminProduct(snapshot) {
+    const data = snapshot.data();
+    const shades = (data.shades || []).map((shade, index) => {
+        const images = (shade.images || []).map(photoSrc).filter(Boolean);
+        return { ...shade, id: shade.id ?? `shade-${index}`, images, image: images[0] || '', _index: index };
+    });
+    const created = data.created_at?.toDate ? data.created_at.toDate().toISOString() : data.created_at ?? null;
+    return { ...data, id: snapshot.id, created_at: created, shades, images: shades.map(s => s.image).filter(Boolean) };
 }
-async function readCatalogueProduct(id, photos = false) {
-  const rows = await catalogueRequest(`products?id=eq.${encodeURIComponent(id)}&select=${catalogueSelect(0, photos)}`);
-  if (!Array.isArray(rows)) throw new Error('Invalid product catalogue');
-  return rows.length ? decodeCatalogueRow(rows[0], photos) : null;
-}
+
 async function readCatalogue() {
-  const metadata = [];
-  for (let offset = 0; ; offset += 200) {
-    const rows = await catalogueRequest(`products?select=${CATALOGUE_FIELDS}&order=created_at.desc,id.asc&limit=200&offset=${offset}`);
-    if (!Array.isArray(rows)) throw new Error('Invalid product catalogue');
-    metadata.push(...rows);
-    if (rows.length < 200) break;
-  }
-  const results = new Map();
-  let next = 0;
-  async function worker() {
-    while (next < metadata.length) {
-      const ids = metadata.slice(next, next += 5).map(row => row.id);
-      const rows = await catalogueRequest(`products?id=in.(${ids.map(encodeURIComponent).join(',')})&select=${catalogueSelect()}`);
-      if (!Array.isArray(rows)) throw new Error('Invalid product catalogue');
-      for (const row of rows) results.set(row.id, await decodeCatalogueRow(row));
-    }
-  }
-  await Promise.all(Array.from({length: 4}, worker));
-  return metadata.filter(row => results.has(row.id)).map(row => results.get(row.id));
+    await firebaseReady;
+    const snapshot = await fb.getDocs(fb.collection(fb.db, 'products'));
+    return snapshot.docs.map(adminProduct).sort((a, b) =>
+        String(b.created_at).localeCompare(String(a.created_at)) || String(a.id).localeCompare(String(b.id)));
 }
 
-async function catalogueRequest(path) {
-  const response = await fetch(`${supabaseUrl}/rest/v1/${path}`, { headers: { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}` }, cache: 'no-store', signal: AbortSignal.timeout(20000) });
-  if (!response.ok) throw new Error('تعذّر تحميل المنتجات (' + response.status + ')');
-  return response.json();
+async function readAdminProduct(id) {
+    await firebaseReady;
+    const snapshot = await fb.getDoc(fb.doc(fb.db, 'products', id));
+    return snapshot.exists() ? adminProduct(snapshot) : null;
+}
+
+async function storePhoto(src) {
+    const stored = typeof src === 'string' && src.match(/\/api\/photo\/([a-f0-9]{24})$/);
+    if (stored) return stored[1];
+    const match = typeof src === 'string' && src.match(/^data:(image\/(?:webp|jpeg|png|gif|avif));base64,(.+)$/);
+    if (!match) return src;
+    const bytes = Uint8Array.from(atob(match[2]), char => char.charCodeAt(0));
+    if (bytes.length > MAX_PHOTO_BYTES) throw new Error('إحدى الصور كبيرة جداً، اختاري صورة أصغر');
+    const digest = new Uint8Array(await crypto.subtle.digest('SHA-256', bytes));
+    const id = Array.from(digest, b => b.toString(16).padStart(2, '0')).join('').slice(0, 24);
+    await fb.setDoc(fb.doc(fb.db, 'photos', id), { type: match[1], data: fb.Bytes.fromUint8Array(bytes) });
+    return id;
+}
+
+async function commitProduct(apply) {
+    const batch = fb.writeBatch(fb.db);
+    apply(batch);
+    batch.set(fb.doc(fb.db, 'meta', 'catalogue'), { version: Date.now() });
+    await batch.commit();
+}
+
+async function storeShadePhotos(shades) {
+    const stored = [];
+    for (const shade of shades) {
+        const images = [];
+        for (const src of shade.images || []) images.push(await storePhoto(src));
+        stored.push({ id: shade.id, name: shade.name, color: shade.color, stock: shade.stock, images: [...new Set(images.filter(Boolean))] });
+    }
+    return stored;
 }
 
 const CATEGORIES = { face:'الوجه', lips:'الشفاه', eyes:'العيون', foundation:'الأساس', setting:'مثبتات', gifts:'هدايا', packages:'باكدجات', nails:'أظافر', accessories:'اكسسوارات', sale:'مخفض' };
@@ -731,12 +734,13 @@ async function optimizeShadePhoto(source, type) {
         img.onerror = () => reject(new Error('تعذّر فتح الصورة، اختاري صورة صالحة'));
         img.src = source;
     });
-    const scale = Math.min(1, 1400 / Math.max(img.naturalWidth, img.naturalHeight));
+    const scale = Math.min(1, 1000 / Math.max(img.naturalWidth, img.naturalHeight));
     const canvas = document.createElement('canvas');
     canvas.width = Math.max(1, Math.round(img.naturalWidth * scale));
     canvas.height = Math.max(1, Math.round(img.naturalHeight * scale));
     canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
-    const optimized = canvas.toDataURL('image/webp', 0.82);
+    let optimized = canvas.toDataURL('image/webp', 0.8);
+    if (optimized.length > MAX_PHOTO_BYTES) optimized = canvas.toDataURL('image/webp', 0.6);
     return optimized.length < source.length ? optimized : source;
 }
 
@@ -894,7 +898,6 @@ addShadeRow('shades-container');
 document.getElementById('product-form').onsubmit = async (e) => {
     e.preventDefault();
     const btn = e.target.querySelector('button[type="submit"]');
-    if (!db) { showToast('تعذّر الاتصال بقاعدة البيانات', 'error'); return; }
     btn.disabled = true; btn.textContent = 'جاري الحفظ...';
     try {
         validateProductFields();
@@ -904,9 +907,6 @@ document.getElementById('product-form').onsubmit = async (e) => {
         const onSale  = document.getElementById('p-on-sale').checked;
         const origVal = document.getElementById('p-original-price').value;
         const discPct = document.getElementById('p-discount-pct').value;
-        // Build images array from all shade images combined for backward compat
-        const allImages = shades.flatMap(s => s.images || (s.image ? [s.image] : []));
-
         const payload = {
             name: document.getElementById('p-name').value,
             nameEn: document.getElementById('p-name-en').value,
@@ -916,11 +916,10 @@ document.getElementById('product-form').onsubmit = async (e) => {
             original_price: onSale && origVal ? parseFloat(origVal) : null,
             discount_pct: onSale && discPct ? parseFloat(discPct) : null,
             description: document.getElementById('p-desc').value,
-            shades, images: allImages, stock: totalStock,
-            created_at: new Date().toISOString()
+            shades: await storeShadePhotos(shades), stock: totalStock,
+            created_at: new Date()
         };
-        const { error } = await db.from('products').insert([payload]);
-        if (error) throw error;
+        await commitProduct(batch => batch.set(fb.doc(fb.db, 'products', crypto.randomUUID()), payload));
         showToast('تم حفظ المنتج بنجاح ✓', 'success');
         e.target.reset();
         document.getElementById('shades-container').innerHTML = '';
@@ -1103,9 +1102,8 @@ async function toggleEditPanel(id) {
     try {
         if (panel.dataset.loaded !== 'true') {
             // Always obtain the full gallery before permitting a save.
-            const rows = await catalogueRequest(`products?id=eq.${encodeURIComponent(id)}&select=shades,images,stock`);
-            if (!rows[0]) throw new Error('المنتج لم يعد موجوداً');
-            const p = rows[0];
+            const p = await readAdminProduct(id);
+            if (!p) throw new Error('المنتج لم يعد موجوداً');
             const container = document.getElementById(`e-shades-${id}`);
             container.innerHTML = '';
             const shades = p.shades?.length ? p.shades : [{ id: '', name: 'الأساسي', stock: p.stock ?? 0, images: p.images || [] }];
@@ -1120,7 +1118,6 @@ async function toggleEditPanel(id) {
 }
 
 async function saveProduct(id) {
-    if (!db) { showToast('تعذّر الاتصال', 'error'); return; }
     const btn = document.getElementById(`save-btn-${id}`);
     btn.disabled = true; btn.innerHTML = 'جاري الحفظ...';
     try {
@@ -1132,7 +1129,6 @@ async function saveProduct(id) {
         const shades  = collectShades(`e-shades-${id}`);
         const stockInput = parseInt(document.getElementById(`e-stock-${id}`).value);
         const totalStock = shades.length ? shades.reduce((sum, s) => sum + Number(s.stock ?? 0), 0) : stockInput;
-        const allImages  = shades.flatMap(s => s.images || (s.image ? [s.image] : []));
         const updates = {
             name: document.getElementById(`e-name-${id}`).value,
             nameEn: document.getElementById(`e-nameen-${id}`).value,
@@ -1143,12 +1139,14 @@ async function saveProduct(id) {
             discount_pct: onSale && discPct ? parseFloat(discPct) : null,
             description: document.getElementById(`e-desc-${id}`).value,
             stock: totalStock,
-            shades, images: allImages
+            shades: await storeShadePhotos(shades)
         };
-        const { error } = await db.from('products').update(updates).eq('id', id);
-        if (error) throw error;
+        await commitProduct(batch => batch.update(fb.doc(fb.db, 'products', id), updates));
         const idx = allProducts.findIndex(p => String(p.id) === String(id));
-        if (idx !== -1) allProducts[idx] = { ...allProducts[idx], ...updates };
+        if (idx !== -1) {
+            const shown = updates.shades.map(s => ({ ...s, images: s.images.map(photoSrc), image: photoSrc(s.images[0]) }));
+            allProducts[idx] = { ...allProducts[idx], ...updates, shades: shown, images: shown.map(s => s.image).filter(Boolean) };
+        }
         btn.innerHTML = 'تم الحفظ ✓';
         showToast('تم حفظ التعديلات بنجاح ✓', 'success');
         setTimeout(() => renderProductList(allProducts), 1000);
@@ -1161,10 +1159,8 @@ async function saveProduct(id) {
 
 async function deleteProduct(id) {
     if (!confirm('هل أنتِ متأكدة من حذف هذا المنتج؟')) return;
-    if (!db) { showToast('تعذّر الاتصال', 'error'); return; }
     try {
-        const { error } = await db.from('products').delete().eq('id', id);
-        if (error) throw error;
+        await commitProduct(batch => batch.delete(fb.doc(fb.db, 'products', id)));
         allProducts = allProducts.filter(p => String(p.id) !== String(id));
         showToast('تم حذف المنتج', 'info');
         const row = document.getElementById(`row-${id}`);
@@ -1173,6 +1169,54 @@ async function deleteProduct(id) {
     } catch (err) { showToast('خطأ في الحذف: ' + err.message, 'error'); }
 }
 
+</script>
+<script type="module">
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-app.js';
+import { connectAuthEmulator, getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js';
+import { Bytes, collection, connectFirestoreEmulator, doc, getDoc, getDocs, getFirestore, setDoc, writeBatch } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js';
+
+const app = initializeApp({
+    apiKey: 'AIzaSyA3F5PJYe9RanZfF2JMh2MdKMIFDgv7PyE',
+    authDomain: 'layansbeautyshop-d8135.firebaseapp.com',
+    projectId: 'layansbeautyshop-d8135',
+    storageBucket: 'layansbeautyshop-d8135.firebasestorage.app',
+    messagingSenderId: '978498951923',
+    appId: '1:978498951923:web:4d79a676438448dcc5b586'
+});
+const auth = getAuth(app);
+const db = getFirestore(app);
+if (['localhost', '127.0.0.1'].includes(location.hostname) && new URLSearchParams(location.search).has('emulator')) {
+    connectAuthEmulator(auth, 'http://127.0.0.1:9099', { disableWarnings: true });
+    connectFirestoreEmulator(db, '127.0.0.1', 8085);
+}
+window.fb = { auth, db, signOut, Bytes, collection, doc, getDoc, getDocs, setDoc, writeBatch };
+
+const screen = document.getElementById('auth-screen');
+const error = document.getElementById('auth-error');
+const showError = message => { error.textContent = message; error.classList.remove('hidden'); };
+document.getElementById('auth-form').addEventListener('submit', async event => {
+    event.preventDefault();
+    error.classList.add('hidden');
+    try {
+        await signInWithEmailAndPassword(auth, document.getElementById('auth-email').value.trim(), document.getElementById('auth-password').value);
+    } catch {
+        showError('البريد الإلكتروني أو كلمة المرور غير صحيحة');
+    }
+});
+let ready = false;
+onAuthStateChanged(auth, async user => {
+    if (!user) { screen.classList.remove('hidden'); return; }
+    try {
+        if (!(await getDoc(doc(db, 'admins', user.uid))).exists()) throw new Error();
+    } catch {
+        await signOut(auth);
+        showError('هذا الحساب لا يملك صلاحية إدارة المتجر');
+        return;
+    }
+    screen.classList.add('hidden');
+    document.getElementById('auth-password').value = '';
+    if (!ready) { ready = true; window.dispatchEvent(new Event('firebase-ready')); }
+});
 </script>
 </body>
 </html>
